@@ -74,6 +74,23 @@
       <default>150</default>
     </entry>
 
+    <!-- Drive 5 (default: HDD partition sdc1) -->
+    <entry name="drive5Label" type="String">
+      <default>HD sdc1</default>
+    </entry>
+    <entry name="drive5Device" type="String">
+      <default>sdc1</default>
+    </entry>
+    <entry name="drive5ReadColor" type="Color">
+      <default>#2bc24d</default>
+    </entry>
+    <entry name="drive5WriteColor" type="Color">
+      <default>#d02525</default>
+    </entry>
+    <entry name="drive5MaxMiB" type="Int">
+      <default>150</default>
+    </entry>
+
     <entry name="trackColor" type="Color">
       <default>#504646</default>
     </entry>

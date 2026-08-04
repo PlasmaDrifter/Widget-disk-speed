@@ -25,6 +25,8 @@ PlasmoidItem {
     property real write3: 0
     property real read4: 0
     property real write4: 0
+    property real read5: 0
+    property real write5: 0
 
     // Whether we've received at least one real sample per drive yet, so the
     // first EMA update snaps directly to the instantaneous value instead of
@@ -111,21 +113,25 @@ PlasmoidItem {
         var d2 = plasmoid.configuration.drive2Device
         var d3 = plasmoid.configuration.drive3Device
         var d4 = plasmoid.configuration.drive4Device
+        var d5 = plasmoid.configuration.drive5Device
 
         var i1 = instantRateFor(d1, statMap, now)
         var i2 = instantRateFor(d2, statMap, now)
         var i3 = instantRateFor(d3, statMap, now)
         var i4 = instantRateFor(d4, statMap, now)
+        var i5 = instantRateFor(d5, statMap, now)
 
         var s1 = smooth(d1, i1.read, i1.write, read1, write1)
         var s2 = smooth(d2, i2.read, i2.write, read2, write2)
         var s3 = smooth(d3, i3.read, i3.write, read3, write3)
         var s4 = smooth(d4, i4.read, i4.write, read4, write4)
+        var s5 = smooth(d5, i5.read, i5.write, read5, write5)
 
         read1 = s1.read; write1 = s1.write
         read2 = s2.read; write2 = s2.write
         read3 = s3.read; write3 = s3.write
         read4 = s4.read; write4 = s4.write
+        read5 = s5.read; write5 = s5.write
     }
 
     Plasma5Support.DataSource {
@@ -270,6 +276,14 @@ PlasmoidItem {
             readColor: plasmoid.configuration.drive4ReadColor
             writeColor: plasmoid.configuration.drive4WriteColor
         }
+        HorizontalBar {
+            label: plasmoid.configuration.drive5Label
+            readRate: root.read5
+            writeRate: root.write5
+            maxRate: plasmoid.configuration.drive5MaxMiB
+            readColor: plasmoid.configuration.drive5ReadColor
+            writeColor: plasmoid.configuration.drive5WriteColor
+        }
     }
 
     // Small no-label bars for the panel, sized to fit the panel's thickness
@@ -284,8 +298,8 @@ PlasmoidItem {
 
         Layout.fillHeight: !compact.vertical
         Layout.fillWidth: compact.vertical
-        Layout.preferredWidth: compact.vertical ? -1 : (compact.barThickness * 4 + compact.barGap * 3 + compact.margin * 2)
-        Layout.preferredHeight: compact.vertical ? (compact.barThickness * 4 + compact.barGap * 3 + compact.margin * 2) : -1
+        Layout.preferredWidth: compact.vertical ? -1 : (compact.barThickness * 5 + compact.barGap * 4 + compact.margin * 2)
+        Layout.preferredHeight: compact.vertical ? (compact.barThickness * 5 + compact.barGap * 4 + compact.margin * 2) : -1
         Layout.minimumWidth: Layout.preferredWidth
         Layout.minimumHeight: Layout.preferredHeight
 
@@ -415,6 +429,12 @@ PlasmoidItem {
                 readColor: plasmoid.configuration.drive4ReadColor
                 writeColor: plasmoid.configuration.drive4WriteColor
             }
+            CompactBarH {
+                readRate: root.read5; writeRate: root.write5
+                maxRate: plasmoid.configuration.drive5MaxMiB
+                readColor: plasmoid.configuration.drive5ReadColor
+                writeColor: plasmoid.configuration.drive5WriteColor
+            }
         }
 
         ColumnLayout {
@@ -446,6 +466,12 @@ PlasmoidItem {
                 maxRate: plasmoid.configuration.drive4MaxMiB
                 readColor: plasmoid.configuration.drive4ReadColor
                 writeColor: plasmoid.configuration.drive4WriteColor
+            }
+            CompactBarV {
+                readRate: root.read5; writeRate: root.write5
+                maxRate: plasmoid.configuration.drive5MaxMiB
+                readColor: plasmoid.configuration.drive5ReadColor
+                writeColor: plasmoid.configuration.drive5WriteColor
             }
         }
     }

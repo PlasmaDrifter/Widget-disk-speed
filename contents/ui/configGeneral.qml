@@ -33,6 +33,12 @@ QQC2.ScrollView {
     property alias cfg_drive4WriteColor: drive4WriteSwatch.color
     property alias cfg_drive4MaxMiB: drive4MaxSpin.value
 
+    property alias cfg_drive5Label: drive5LabelField.text
+    property alias cfg_drive5Device: drive5DeviceField.text
+    property alias cfg_drive5ReadColor: drive5ReadSwatch.color
+    property alias cfg_drive5WriteColor: drive5WriteSwatch.color
+    property alias cfg_drive5MaxMiB: drive5MaxSpin.value
+
     property alias cfg_trackColor: trackSwatch.color
     property alias cfg_updateInterval: intervalSpin.value
     property alias cfg_barLength: barLengthSpin.value
@@ -180,6 +186,34 @@ QQC2.ScrollView {
     }
     QQC2.SpinBox {
         id: drive4MaxSpin
+        Kirigami.FormData.label: i18n("Max throughput / top of bar (MiB/s):")
+        from: 1
+        to: 10000
+        stepSize: 10
+        editable: true
+    }
+
+    // --- Drive 5 ---
+    Kirigami.Separator { Kirigami.FormData.label: i18n("Drive 5"); Kirigami.FormData.isSection: true }
+    QQC2.TextField {
+        id: drive5LabelField
+        Kirigami.FormData.label: i18n("Display name:")
+    }
+    QQC2.TextField {
+        id: drive5DeviceField
+        Kirigami.FormData.label: i18n("Block device (e.g. nvme0n1, sdb2):")
+        placeholderText: i18n("run 'lsblk' to find this")
+    }
+    ColorRow {
+        id: drive5ReadSwatch
+        Kirigami.FormData.label: i18n("Read color:")
+    }
+    ColorRow {
+        id: drive5WriteSwatch
+        Kirigami.FormData.label: i18n("Write color:")
+    }
+    QQC2.SpinBox {
+        id: drive5MaxSpin
         Kirigami.FormData.label: i18n("Max throughput / top of bar (MiB/s):")
         from: 1
         to: 10000
