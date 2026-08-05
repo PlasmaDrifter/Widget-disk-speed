@@ -58,14 +58,32 @@ PlasmoidItem {
         return map
     }
 
+    property string currentCmd: ""
+
     // Returns instantaneous {read, write} MiB/s for a device, based on the
     // delta since the previous sample. Updates prevStats as a side effect.
     function instantRateFor(devName, statMap, now) {
-        if (!devName || devName.length === 0 || !(devName in statMap)) {
+        if (!devName || devName.length === 0) {
             return { read: 0, write: 0 }
         }
 
         var cur = statMap[devName]
+        if (!cur) {
+            var baseDev = devName.replace(/\d+$/, "")
+            if (baseDev && (baseDev in statMap)) {
+                cur = statMap[baseDev]
+            } else {
+                var p1Dev = baseDev + "1"
+                if (p1Dev && (p1Dev in statMap)) {
+                    cur = statMap[p1Dev]
+                }
+            }
+        }
+
+        if (!cur) {
+            return { read: 0, write: 0 }
+        }
+
         var prev = prevStats[devName]
         var result = { read: 0, write: 0 }
 
@@ -139,14 +157,13 @@ PlasmoidItem {
         engine: "executable"
         connectedSources: []
         onNewData: (sourceName, data) => {
-            var stdout = data["stdout"]
-            if (stdout) {
-                root.handleOutput(stdout)
+            if (sourceName === root.currentCmd) {
+                var stdout = data["stdout"]
+                if (stdout) {
+                    root.handleOutput(stdout)
+                }
+                disconnectSource(sourceName)
             }
-            disconnectSource(sourceName)
-        }
-        function exec(cmd) {
-            connectSource(cmd)
         }
     }
 
@@ -155,7 +172,13 @@ PlasmoidItem {
         running: true
         repeat: true
         triggeredOnStart: true
-        onTriggered: executable.exec("cat /proc/diskstats")
+        onTriggered: {
+            if (root.currentCmd && root.currentCmd.length > 0) {
+                executable.disconnectSource(root.currentCmd)
+            }
+            root.currentCmd = "cat /proc/diskstats # " + Date.now()
+            executable.connectSource(root.currentCmd)
+        }
     }
 
     // A single labeled vertical bar: name on top, stacked read+write segments

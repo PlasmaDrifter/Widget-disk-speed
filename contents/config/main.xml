@@ -45,7 +45,7 @@
       <default>HD 3TB</default>
     </entry>
     <entry name="drive3Device" type="String">
-      <default>sdb2</default>
+      <default>sdb1</default>
     </entry>
     <entry name="drive3ReadColor" type="Color">
       <default>#2bc24d</default>
