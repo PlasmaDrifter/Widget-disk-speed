@@ -168,7 +168,7 @@ PlasmoidItem {
     }
 
     Timer {
-        interval: (plasmoid.configuration.updateInterval || 2) * 1000
+        interval: (plasmoid.configuration.updateInterval || 5) * 1000
         running: true
         repeat: true
         triggeredOnStart: true
