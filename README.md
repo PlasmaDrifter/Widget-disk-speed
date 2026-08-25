@@ -36,7 +36,7 @@ A real-time disk read/write throughput speed gauge for KDE Plasma 6.
 ### Option 1: Git Clone (Recommended)
 ```bash
 mkdir -p ~/.local/share/plasma/plasmoids/
-git clone https://github.com/PlasmaDrifter/disk-speed.git ~/.local/share/plasma/plasmoids/local.widget.disk-speed
+git clone https://github.com/PlasmaDrifter/Widget-disk-speed.git ~/.local/share/plasma/plasmoids/local.widget.disk-speed
 ```
 
 ### Option 2: Plasma Package Installer
