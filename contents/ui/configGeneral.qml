@@ -41,7 +41,6 @@ QQC2.ScrollView {
 
     property alias cfg_trackColor: trackSwatch.color
     property alias cfg_updateInterval: intervalSpin.value
-    property alias cfg_barLength: barLengthSpin.value
     property alias cfg_barThickness: barThicknessSpin.value
     property alias cfg_smoothingPercent: smoothingSpin.value
 
@@ -235,14 +234,6 @@ QQC2.ScrollView {
         from: 1
         to: 60
         stepSize: 1
-    }
-
-    QQC2.SpinBox {
-        id: barLengthSpin
-        Kirigami.FormData.label: i18n("Bar length / height (px):")
-        from: 30
-        to: 400
-        stepSize: 10
     }
 
     QQC2.SpinBox {

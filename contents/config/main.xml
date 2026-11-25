@@ -59,10 +59,10 @@
 
     <!-- Drive 4 (default: HDD) -->
     <entry name="drive4Label" type="String">
-      <default>HD 8TB</default>
+      <default>HD 4TB</default>
     </entry>
     <entry name="drive4Device" type="String">
-      <default>sda1</default>
+      <default>sdd1</default>
     </entry>
     <entry name="drive4ReadColor" type="Color">
       <default>#2bc24d</default>
@@ -74,12 +74,12 @@
       <default>150</default>
     </entry>
 
-    <!-- Drive 5 (default: HDD partition sdc1) -->
+    <!-- Drive 5 (default: HDD) -->
     <entry name="drive5Label" type="String">
-      <default>HD sdc1</default>
+      <default>HD 8TB</default>
     </entry>
     <entry name="drive5Device" type="String">
-      <default>sdc1</default>
+      <default>sda1</default>
     </entry>
     <entry name="drive5ReadColor" type="Color">
       <default>#2bc24d</default>
