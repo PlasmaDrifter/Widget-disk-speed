@@ -13,8 +13,8 @@ PlasmoidItem {
     readonly property color trackColor: plasmoid.configuration.trackColor
     readonly property real smoothingAlpha: Math.max(0.05, Math.min(1, (plasmoid.configuration.smoothingPercent || 30) / 100))
     readonly property int updateMs: Math.max(500, (plasmoid.configuration.updateInterval || 5) * 1000)
-    // Match the bar's glide time to the poll interval so it animates smoothly between samples
-    readonly property int animDuration: updateMs
+    // Short glide between samples so bars settle quickly without continuous 144Hz repaints
+    readonly property int animDuration: 250
     readonly property real fallAlpha: 0.75
 
     toolTipMainText: ""
@@ -96,8 +96,8 @@ PlasmoidItem {
             var wAlpha = instWrite < writeRate ? root.fallAlpha : root.smoothingAlpha
             var nextRead = rAlpha * instRead + (1 - rAlpha) * readRate
             var nextWrite = wAlpha * instWrite + (1 - wAlpha) * writeRate
-            readRate = nextRead < 0.005 ? 0 : nextRead
-            writeRate = nextWrite < 0.005 ? 0 : nextWrite
+            readRate = nextRead < 0.05 ? 0 : nextRead
+            writeRate = nextWrite < 0.05 ? 0 : nextWrite
         }
     }
 
@@ -168,6 +168,7 @@ PlasmoidItem {
         property real maxRate: 100
         property color readColor: "#2ecc71"
         property color writeColor: "#e74c3c"
+        property bool animEnabled: true
 
         readonly property real total: maxRate > 0 ? (readRate + writeRate) / maxRate : 0
         readonly property real scaleFactor: total > 1 ? 1 / total : 1
@@ -205,7 +206,7 @@ PlasmoidItem {
                 width: barRoot.maxRate > 0
                     ? Math.min(1, (barRoot.readRate / barRoot.maxRate) * barRoot.scaleFactor) * parent.width
                     : 0
-                Behavior on width { NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
+                Behavior on width { enabled: barRoot.animEnabled; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
             }
             Rectangle {
                 anchors.left: readSegV.right
@@ -215,7 +216,7 @@ PlasmoidItem {
                 width: barRoot.maxRate > 0
                     ? Math.min(1, (barRoot.writeRate / barRoot.maxRate) * barRoot.scaleFactor) * parent.width
                     : 0
-                Behavior on width { NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
+                Behavior on width { enabled: barRoot.animEnabled; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
             }
         }
     }
@@ -254,6 +255,7 @@ PlasmoidItem {
             delegate: HorizontalBar {
                 required property int index
                 readonly property var slotObj: root.slotList[index]
+                animEnabled: fullRepItem.visible
                 label: slotObj.label
                 readRate: slotObj.readRate
                 writeRate: slotObj.writeRate
@@ -294,6 +296,7 @@ PlasmoidItem {
             property color readColor: "#2ecc71"
             property color writeColor: "#e74c3c"
             property bool horizontalFill: false
+            property bool animEnabled: true
 
             readonly property real total: maxRate > 0 ? (readRate + writeRate) / maxRate : 0
             readonly property real scaleFactor: total > 1 ? 1 / total : 1
@@ -316,10 +319,10 @@ PlasmoidItem {
                 anchors.right: barItem.horizontalFill ? undefined : parent.right
                 radius: parent.radius
                 color: barItem.readColor
-                width: barItem.horizontalFill ? barItem.readFrac * parent.width : parent.width
-                height: barItem.horizontalFill ? parent.height : barItem.readFrac * parent.height
-                Behavior on width { enabled: barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
-                Behavior on height { enabled: !barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
+                width: barItem.horizontalFill ? Math.round(barItem.readFrac * parent.width * 2) / 2 : parent.width
+                height: barItem.horizontalFill ? parent.height : Math.round(barItem.readFrac * parent.height * 2) / 2
+                Behavior on width { enabled: barItem.animEnabled && barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
+                Behavior on height { enabled: barItem.animEnabled && !barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
             }
             Rectangle {
                 anchors.left: barItem.horizontalFill ? readSeg.right : parent.left
@@ -327,10 +330,10 @@ PlasmoidItem {
                 anchors.top: barItem.horizontalFill ? parent.top : undefined
                 anchors.right: barItem.horizontalFill ? undefined : parent.right
                 color: barItem.writeColor
-                width: barItem.horizontalFill ? barItem.writeFrac * parent.width : parent.width
-                height: barItem.horizontalFill ? parent.height : barItem.writeFrac * parent.height
-                Behavior on width { enabled: barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
-                Behavior on height { enabled: !barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.Linear } }
+                width: barItem.horizontalFill ? Math.round(barItem.writeFrac * parent.width * 2) / 2 : parent.width
+                height: barItem.horizontalFill ? parent.height : Math.round(barItem.writeFrac * parent.height * 2) / 2
+                Behavior on width { enabled: barItem.animEnabled && barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
+                Behavior on height { enabled: barItem.animEnabled && !barItem.horizontalFill; NumberAnimation { duration: root.animDuration; easing.type: Easing.OutCubic } }
             }
         }
 
@@ -346,6 +349,7 @@ PlasmoidItem {
                     required property int index
                     readonly property var slotObj: root.slotList[index]
                     horizontalFill: false
+                    animEnabled: !compact.vertical
                     readRate: slotObj.readRate
                     writeRate: slotObj.writeRate
                     maxRate: slotObj.maxRate
@@ -367,6 +371,7 @@ PlasmoidItem {
                     required property int index
                     readonly property var slotObj: root.slotList[index]
                     horizontalFill: true
+                    animEnabled: compact.vertical
                     readRate: slotObj.readRate
                     writeRate: slotObj.writeRate
                     maxRate: slotObj.maxRate
