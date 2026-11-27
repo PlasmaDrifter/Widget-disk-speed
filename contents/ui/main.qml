@@ -27,7 +27,90 @@ PlasmoidItem {
 
     function parentDiskFor(devName) {
         if (!devName) return ""
-        return devName.replace(/p\d+$/, "").replace(/\d+$/, "")
+        if (/^(nvme\d+n\d+|mmcblk\d+|loop\d+|md\d+|nbd\d+)p\d+$/.test(devName)) {
+            return devName.replace(/p\d+$/, "")
+        }
+        if (/^(sd|hd|vd|xvd|dasd)[a-z]+\d+$/.test(devName)) {
+            return devName.replace(/\d+$/, "")
+        }
+        return devName
+    }
+
+    component IoChannel: Sensors.Sensor {
+        id: chan
+        property real weightedSum: 0
+        property real totalDt: 0
+        property real lastSampleMs: 0
+        property real rateMiB: 0
+        property bool primed: false
+
+        // Receive every ~500ms ksystemstats tick so Timer windows integrate all I/O
+        // instead of dropping 90% of samples via updateRateLimit.
+        updateRateLimit: 0
+        enabled: sensorId.length > 0
+
+        function resetChannel() {
+            weightedSum = 0
+            totalDt = 0
+            lastSampleMs = 0
+            rateMiB = 0
+            primed = false
+        }
+
+        onSensorIdChanged: resetChannel()
+
+        onStatusChanged: {
+            if (status !== Sensors.Sensor.Ready) {
+                lastSampleMs = 0
+            }
+        }
+
+        onValueChanged: {
+            if (status !== Sensors.Sensor.Ready || value === undefined || value === null) {
+                return
+            }
+            var now = Date.now()
+            var v = Math.max(0, Number(value))
+            if (isNaN(v)) v = 0
+            if (lastSampleMs > 0) {
+                var dt = now - lastSampleMs
+                if (dt > 0) {
+                    var maxDt = Math.max(1000, (updateInterval || 500) * 2)
+                    var clampedDt = Math.min(dt, maxDt)
+                    weightedSum += v * clampedDt
+                    totalDt += clampedDt
+                }
+            }
+            lastSampleMs = now
+        }
+
+        function flushRate(riseAlpha, fallAlpha) {
+            if (sensorId.length === 0) {
+                rateMiB = 0
+                return
+            }
+            if (status !== Sensors.Sensor.Ready && totalDt <= 0) {
+                return
+            }
+            var inst = 0
+            if (totalDt > 0) {
+                inst = (weightedSum / totalDt) / 1048576
+            } else if (value !== undefined && value !== null) {
+                inst = Math.max(0, Number(value) / 1048576)
+                if (isNaN(inst)) inst = 0
+            }
+            weightedSum = 0
+            totalDt = 0
+
+            if (!primed) {
+                primed = true
+                rateMiB = inst
+                return
+            }
+            var alpha = inst < rateMiB ? Math.max(fallAlpha, riseAlpha) : riseAlpha
+            var next = alpha * inst + (1 - alpha) * rateMiB
+            rateMiB = next < 0.05 ? 0 : next
+        }
     }
 
     component DriveSlot: Item {
@@ -38,66 +121,74 @@ PlasmoidItem {
         property color readColor: "#2ecc71"
         property color writeColor: "#e74c3c"
 
-        property real readRate: 0
-        property real writeRate: 0
-        property bool primed: false
+        readonly property real readRate: readSensor.rateMiB
+        readonly property real writeRate: writeSensor.rateMiB
         property bool fallbackToParent: false
 
         readonly property string cleanDev: (configuredDevice || "").trim()
         readonly property string parentDisk: root.parentDiskFor(cleanDev)
-        readonly property string effectiveDisk: (fallbackToParent && parentDisk.length > 0) ? parentDisk : cleanDev
+        readonly property bool canFallback: parentDisk.length > 0 && parentDisk !== cleanDev
+        readonly property string effectiveDisk: (fallbackToParent && canFallback) ? parentDisk : cleanDev
+
+        function maybeTriggerFallback() {
+            if (canFallback && !fallbackToParent) {
+                fallbackToParent = true
+            }
+        }
 
         onConfiguredDeviceChanged: {
             fallbackToParent = false
-            primed = false
-            readRate = 0
-            writeRate = 0
+            readSensor.resetChannel()
+            writeSensor.resetChannel()
+            if (canFallback) {
+                fallbackTimer.restart()
+            } else {
+                fallbackTimer.stop()
+            }
         }
 
-        Sensors.Sensor {
-            id: readSensor
-            sensorId: slot.effectiveDisk.length > 0 ? ("disk/" + slot.effectiveDisk + "/read") : ""
-            updateRateLimit: root.updateMs
-            enabled: slot.effectiveDisk.length > 0
-            onStatusChanged: {
-                if (status === Sensors.Sensor.Error && !slot.fallbackToParent && slot.parentDisk !== slot.cleanDev && slot.parentDisk.length > 0) {
-                    slot.fallbackToParent = true
+        // KSysGuard::Sensor leaves missing partition IDs (e.g. sda1, sdb1) in Loading
+        // instead of transitioning to Error, so fall back to the parent disk if not Ready.
+        Timer {
+            id: fallbackTimer
+            interval: 500
+            repeat: false
+            running: slot.canFallback && !slot.fallbackToParent
+                && readSensor.status !== Sensors.Sensor.Ready
+                && writeSensor.status !== Sensors.Sensor.Ready
+            onTriggered: {
+                if (readSensor.status !== Sensors.Sensor.Ready && writeSensor.status !== Sensors.Sensor.Ready) {
+                    slot.maybeTriggerFallback()
                 }
             }
         }
 
-        Sensors.Sensor {
-            id: writeSensor
-            sensorId: slot.effectiveDisk.length > 0 ? ("disk/" + slot.effectiveDisk + "/write") : ""
-            updateRateLimit: root.updateMs
-            enabled: slot.effectiveDisk.length > 0
+        IoChannel {
+            id: readSensor
+            sensorId: slot.effectiveDisk.length > 0 ? ("disk/" + slot.effectiveDisk + "/read") : ""
+            onStatusChanged: slot.onChannelStatusChanged(status)
         }
 
-        function sampleAndSmooth() {
-            if (slot.effectiveDisk.length === 0) {
-                readRate = 0
-                writeRate = 0
+        IoChannel {
+            id: writeSensor
+            sensorId: slot.effectiveDisk.length > 0 ? ("disk/" + slot.effectiveDisk + "/write") : ""
+            onStatusChanged: slot.onChannelStatusChanged(status)
+        }
+
+        function onChannelStatusChanged(status) {
+            if (status === Sensors.Sensor.Ready) {
+                fallbackTimer.stop()
+            } else if (status === Sensors.Sensor.Error || status === Sensors.Sensor.Removed) {
+                maybeTriggerFallback()
+            }
+        }
+
+        function sampleAndSmooth(onlyIfUnprimed) {
+            if (onlyIfUnprimed && readSensor.primed && writeSensor.primed) {
                 return
             }
-            var instRead = Math.max(0, Number(readSensor.value || 0) / 1048576)
-            var instWrite = Math.max(0, Number(writeSensor.value || 0) / 1048576)
-            if (isNaN(instRead)) instRead = 0
-            if (isNaN(instWrite)) instWrite = 0
-
-            if (!primed && (readSensor.status === Sensors.Sensor.Ready || writeSensor.status === Sensors.Sensor.Ready)) {
-                primed = true
-                readRate = instRead
-                writeRate = instWrite
-                return
-            }
-            if (!primed) return
-
-            var rAlpha = instRead < readRate ? root.fallAlpha : root.smoothingAlpha
-            var wAlpha = instWrite < writeRate ? root.fallAlpha : root.smoothingAlpha
-            var nextRead = rAlpha * instRead + (1 - rAlpha) * readRate
-            var nextWrite = wAlpha * instWrite + (1 - wAlpha) * writeRate
-            readRate = nextRead < 0.05 ? 0 : nextRead
-            writeRate = nextWrite < 0.05 ? 0 : nextWrite
+            readSensor.flushRate(root.smoothingAlpha, root.fallAlpha)
+            writeSensor.flushRate(root.smoothingAlpha, root.fallAlpha)
         }
     }
 
@@ -145,13 +236,24 @@ PlasmoidItem {
     }
 
     Timer {
+        interval: 1000
+        running: true
+        repeat: false
+        onTriggered: {
+            for (var i = 0; i < root.slotList.length; i++) {
+                root.slotList[i].sampleAndSmooth(true)
+            }
+        }
+    }
+
+    Timer {
         interval: root.updateMs
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: {
             for (var i = 0; i < root.slotList.length; i++) {
-                root.slotList[i].sampleAndSmooth()
+                root.slotList[i].sampleAndSmooth(false)
             }
         }
     }
